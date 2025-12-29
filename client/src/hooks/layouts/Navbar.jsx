@@ -10,9 +10,8 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex-shrink-0 flex items-center">
+          <div className="flex-shrink-0">
             <Link to="/" className="text-xl font-bold text-green-600">
-              <Heart className="w-6 h-6 mr-2 text-green-600 fill-green-600" />
               <span className="text-gray-900">Afya</span>Link
             </Link>
           </div>
