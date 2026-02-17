@@ -14,7 +14,7 @@ class Config:
     # --- Database ---
     DATABASE_URL = os.getenv(
         "DATABASE_URL",
-        "postgresql://afyalink_db_1yp7_user:nL4lXimNNxQu2o1JtP3VxcqxDgmlaQ8O@dpg-d59bi0lactks73bovbsg-a.oregon-postgres.render.com/afyalink_db_1yp7",
+        "postgresql://afyalink_db_ejxf_user:3PeLFB4Eh43zdOEGsvhM9VmEFSaslIVz@dpg-d6a5r9umcj7s7393gbq0-a.oregon-postgres.render.com/afyalink_db_ejxf",
     )
 
     if DATABASE_URL.startswith("postgres://"):
