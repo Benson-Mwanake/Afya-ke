@@ -1,12 +1,14 @@
 // src/services/openAiService.js
 import axios from "axios";
 
-const MODEL = process.env.REACT_APP_OPENAI_MODEL || "gpt-4o-mini";
+// Using Llama 3.1 8b on Groq - it's incredibly fast and free
+const MODEL = process.env.REACT_APP_GROQ_MODEL || "llama-3.1-8b-instant";
 
 export const analyzeSymptoms = async (description, selectedSymptoms) => {
-  const apiKey = process.env.REACT_APP_OPENAI_API_KEY;
-  if (!apiKey?.startsWith("sk-")) {
-    throw new Error("OpenAI API key missing. Check .env file.");
+  const apiKey = process.env.REACT_APP_GROQ_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("Groq API key missing. Check .env file.");
   }
 
   // Combine selected + free-text
@@ -41,23 +43,19 @@ Return **only valid JSON** (no markdown, no extra text):
   "homeCare": [
     "Rest in a cool place",
     "Drink plenty of water or ORS"
-    // ← ONLY include if fever/dehydration is mentioned
   ],
   "lightMedication": [
     "Paracetamol 500mg every 6hrs (max 4/day)"
-    // ← ONLY include if fever or pain is mentioned
   ],
   "emergencySigns": [
     "Fever >40°C → seizures",
     "Difficulty breathing",
     "Severe neck swelling"
-    // ← ONLY include if relevant risk exists
   ],
   "urgentAdvice": "Go to hospital NOW if any emergency sign appears. Call 0800 721 316.",
   "kenyaTips": [
     "Get malaria RDT at nearest clinic",
     "Dial *155# to choose NHIF facility"
-    // ← ONLY include if malaria/fever or NHIF context fits
   ],
   "sources": [
     { "title": "Kenya Ministry of Health", "uri": "https://www.health.go.ke" }
@@ -70,13 +68,13 @@ Return **only valid JSON** (no markdown, no extra text):
 - For pain → allow paracetamol/ibuprofen.
 - For cough → allow steam, cough syrup.
 - For breathing issues → allow emergency signs.
-- Predict future risks in emergencySigns (e.g., "Could lead to pneumonia").
+- Predict future risks in emergencySigns.
 - Keep arrays **empty** if nothing applies.
 `.trim();
 
   try {
     const res = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+      "https://api.groq.com/openai/v1/chat/completions",
       {
         model: MODEL,
         messages: [
@@ -87,8 +85,10 @@ Return **only valid JSON** (no markdown, no extra text):
           },
           { role: "user", content: prompt },
         ],
-        temperature: 0.2, // low → deterministic
+        temperature: 0.2,
         max_tokens: 1000,
+        // Groq supports JSON mode specifically
+        response_format: { type: "json_object" },
       },
       {
         headers: {
@@ -96,10 +96,12 @@ Return **only valid JSON** (no markdown, no extra text):
           "Content-Type": "application/json",
         },
         timeout: 15000,
-      }
+      },
     );
 
     const raw = res.data.choices[0].message.content.trim();
+
+    // Groq is very good at JSON, but we'll keep your safety check
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("AI did not return valid JSON.");
 
@@ -131,7 +133,6 @@ Return **only valid JSON** (no markdown, no extra text):
         : [],
     };
 
-    // Fallback if nothing matched
     if (clean.possibleConditions.length === 0) {
       clean.possibleConditions = [
         {
@@ -145,8 +146,10 @@ Return **only valid JSON** (no markdown, no extra text):
 
     return clean;
   } catch (err) {
-    if (err.response?.status === 401)
-      throw new Error("Invalid OpenAI API key.");
+    // Adjusted error handling for Groq's response structure
+    if (err.response?.status === 401) throw new Error("Invalid Groq API key.");
+    if (err.response?.status === 429)
+      throw new Error("Too many requests to Groq. Please wait a moment.");
     if (err.code === "ECONNABORTED")
       throw new Error("Request timed out. Check internet.");
     throw new Error(err.message || "AI service error.");
